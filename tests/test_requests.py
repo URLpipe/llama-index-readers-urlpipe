@@ -64,7 +64,7 @@ def test_user_agent_names_the_client_and_this_integration(
     make_reader().load_data([URL])
     asyncio.run(make_reader().aload_data([URL]))
 
-    expected = f"urlpipe-python/{urlpipe.__version__} llama-index-readers-urlpipe/{__version__}"
+    expected = f"llama-index-readers-urlpipe/{__version__} urlpipe-python/{urlpipe.__version__}"
     assert [r.headers["user-agent"] for r in server.requests] == [expected, expected]
 
 

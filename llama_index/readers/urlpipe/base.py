@@ -8,7 +8,6 @@ import os
 import uuid
 from typing import Any, Dict, Iterable, Iterator, List, Literal, Optional, Sequence, Union
 
-import httpx
 import urlpipe
 from llama_index.core.bridge.pydantic import Field, model_validator
 from llama_index.core.readers.base import BasePydanticReader
@@ -21,7 +20,9 @@ logger = logging.getLogger(__name__)
 ReaderOperation = Literal["markdown", "html", "summarize"]
 """The operations whose result is page text a Document can hold."""
 
-USER_AGENT_SUFFIX = f"llama-index-readers-urlpipe/{__version__}"
+# Named in every request's User-Agent, in front of the client's own:
+# "llama-index-readers-urlpipe/0.1.1 urlpipe-python/0.2.0".
+USER_AGENT = f"llama-index-readers-urlpipe/{__version__}"
 
 # Errors about the account rather than the URL: every other URL would fail the
 # same way, so they are raised even with continue_on_failure.
@@ -121,15 +122,14 @@ class UrlpipeReader(BasePydanticReader):
         targets = _as_list(urls)
         if not targets:
             return
-        with httpx.Client(event_hooks={"request": [_tag_user_agent]}) as http:
-            with urlpipe.Client(http_client=http, **self._client_kwargs()) as client:
-                for url in targets:
-                    try:
-                        response = self._fetch(client, url)
-                    except urlpipe.UrlpipeError as error:
-                        self._skip_or_raise(url, error)
-                        continue
-                    yield self._document(url, response)
+        with urlpipe.Client(**self._client_kwargs()) as client:
+            for url in targets:
+                try:
+                    response = self._fetch(client, url)
+                except urlpipe.UrlpipeError as error:
+                    self._skip_or_raise(url, error)
+                    continue
+                yield self._document(url, response)
 
     def load_data(self, urls: Union[str, Sequence[str]]) -> List[Document]:
         """Fetch each URL and return one Document per URL, in order."""
@@ -142,27 +142,26 @@ class UrlpipeReader(BasePydanticReader):
         if not targets:
             return []
         limit = asyncio.Semaphore(self.max_concurrency)
-        async with httpx.AsyncClient(event_hooks={"request": [_atag_user_agent]}) as http:
-            async with urlpipe.AsyncClient(http_client=http, **self._client_kwargs()) as client:
+        async with urlpipe.AsyncClient(**self._client_kwargs()) as client:
 
-                async def load(url: str) -> Optional[Document]:
-                    async with limit:
-                        try:
-                            response = await self._afetch(client, url)
-                        except urlpipe.UrlpipeError as error:
-                            self._skip_or_raise(url, error)
-                            return None
-                    return self._document(url, response)
+            async def load(url: str) -> Optional[Document]:
+                async with limit:
+                    try:
+                        response = await self._afetch(client, url)
+                    except urlpipe.UrlpipeError as error:
+                        self._skip_or_raise(url, error)
+                        return None
+                return self._document(url, response)
 
-                tasks = [asyncio.ensure_future(load(url)) for url in targets]
-                try:
-                    documents = await asyncio.gather(*tasks)
-                except BaseException:
-                    # One URL failed: stop the rest before the connection pool closes.
-                    for task in tasks:
-                        task.cancel()
-                    await asyncio.gather(*tasks, return_exceptions=True)
-                    raise
+            tasks = [asyncio.ensure_future(load(url)) for url in targets]
+            try:
+                documents = await asyncio.gather(*tasks)
+            except BaseException:
+                # One URL failed: stop the rest before the connection pool closes.
+                for task in tasks:
+                    task.cancel()
+                await asyncio.gather(*tasks, return_exceptions=True)
+                raise
         return [doc for doc in documents if doc is not None]
 
     async def alazy_load_data(self, urls: Union[str, Sequence[str]]) -> Iterable[Document]:
@@ -178,6 +177,7 @@ class UrlpipeReader(BasePydanticReader):
             "timeout": self.timeout,
             "max_retries": self.max_retries,
             "wait_timeout": self.wait_timeout,
+            "user_agent": USER_AGENT,
         }
 
     def _fetch(self, client: urlpipe.Client, url: str) -> urlpipe.Response[str]:
@@ -230,15 +230,3 @@ def document_id(url: str, operation: str) -> str:
 def _as_list(urls: Union[str, Sequence[str]]) -> List[str]:
     return [urls] if isinstance(urls, str) else list(urls)
 
-
-def _user_agent(current: Optional[str]) -> str:
-    return f"{current} {USER_AGENT_SUFFIX}" if current else USER_AGENT_SUFFIX
-
-
-def _tag_user_agent(request: httpx.Request) -> None:
-    """Name this integration after the Python client's own User-Agent."""
-    request.headers["User-Agent"] = _user_agent(request.headers.get("User-Agent"))
-
-
-async def _atag_user_agent(request: httpx.Request) -> None:
-    _tag_user_agent(request)

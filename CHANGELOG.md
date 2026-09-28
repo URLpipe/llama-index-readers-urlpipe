@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1
+
+- Requests carry `llama-index-readers-urlpipe/<version>` in front of the `urlpipe` client's User-Agent, through the client's own option rather than a private HTTP client. Needs `urlpipe` 0.2.0.
+
 ## 0.1.0 — 2026-09-28
 
 - `UrlpipeReader`: load web pages into LlamaIndex as Markdown, rendered HTML or a

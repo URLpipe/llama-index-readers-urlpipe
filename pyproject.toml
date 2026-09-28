@@ -33,7 +33,7 @@ classifiers = [
 ]
 dependencies = [
   "llama-index-core>=0.13,<0.15",
-  "urlpipe>=0.1.0,<1",
+  "urlpipe>=0.2.0,<1",
 ]
 
 [project.optional-dependencies]
