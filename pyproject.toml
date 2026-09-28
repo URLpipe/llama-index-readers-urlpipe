@@ -1,0 +1,75 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "llama-index-readers-urlpipe"
+dynamic = ["version"]
+description = "LlamaIndex reader for URLpipe: load web pages as clean Markdown, rendered HTML or a summary, rendered in real Chrome."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+authors = [{ name = "URLpipe", email = "contact@urlpipe.dev" }]
+maintainers = [{ name = "URLpipe", email = "contact@urlpipe.dev" }]
+keywords = ["llama-index", "llamaindex", "reader", "urlpipe", "markdown", "web", "rag", "llm"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Internet :: WWW/HTTP",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+  "Typing :: Typed",
+  "Framework :: AsyncIO",
+]
+dependencies = [
+  "llama-index-core>=0.13,<0.15",
+  "urlpipe>=0.1.0,<1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7", "mypy>=1.5", "build>=1"]
+
+[project.urls]
+Homepage = "https://urlpipe.dev/integrations/llamaindex"
+Documentation = "https://urlpipe.dev/docs/client-libraries"
+Source = "https://github.com/URLpipe/llama-index-readers-urlpipe"
+Changelog = "https://github.com/URLpipe/llama-index-readers-urlpipe/blob/main/CHANGELOG.md"
+
+[tool.hatch.version]
+path = "llama_index/readers/urlpipe/_version.py"
+
+# `llama_index` and `llama_index.readers` are implicit namespace packages shared
+# with llama-index-core and every other reader, so the wheel ships only
+# llama_index/readers/urlpipe and no __init__.py above it.
+[tool.hatch.build.targets.wheel]
+include = ["llama_index/readers/urlpipe"]
+
+[tool.hatch.build.targets.sdist]
+include = ["llama_index/readers/urlpipe", "tests", "README.md", "CHANGELOG.md", "LICENSE", "pyproject.toml"]
+
+[tool.llamahub]
+contains_example = false
+import_path = "llama_index.readers.urlpipe"
+
+[tool.llamahub.class_authors]
+UrlpipeReader = "URLpipe"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.mypy]
+strict = true
+files = ["llama_index/readers/urlpipe", "tests"]
+namespace_packages = true
+explicit_package_bases = true
